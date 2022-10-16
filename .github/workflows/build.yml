@@ -1,0 +1,34 @@
+name: build
+
+on:
+  push:
+    paths:
+      - 'src/**'
+      - '.github/workflows/build.yml'
+    branches:
+      - 'main'
+  pull_request:
+    paths:
+      - 'src/**'
+      - '.github/workflows/build.yml'
+    branches:
+      - 'main'
+
+jobs:
+
+  build-windows:
+
+    runs-on: windows-latest
+          
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - uses: microsoft/setup-msbuild@v1.1
+
+      # We have a Visual Studio Installer project so msbuild cannot be used, we must use devenv instead
+      - name: Build QChart
+        run: |
+            dotnet restore src/QChart.sln
+            $devenv = & vswhere.exe '-property' productPath
+            Start-Process -FilePath $devenv -ArgumentList "src/QChart.sln","/Build","Release|x64" -Wait

@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32630.194
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mvdparser", "mvdparser\mvdparser.vcxproj", "{385822BB-728D-4F80-8BB5-F5BBCD72C991}"
+EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "MVDChartSetup", "QChartSetup\QChartSetup.vdproj", "{5B610944-B25A-4B3A-B033-2254D84F8FE2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "QChart", "QChart\QChart.csproj", "{6045F1B6-3B7D-4003-92D0-3E60C0F93936}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{385822BB-728D-4F80-8BB5-F5BBCD72C991}.Debug|x64.ActiveCfg = Debug|x64
+		{385822BB-728D-4F80-8BB5-F5BBCD72C991}.Debug|x64.Build.0 = Debug|x64
+		{385822BB-728D-4F80-8BB5-F5BBCD72C991}.Release|x64.ActiveCfg = Release|x64
+		{385822BB-728D-4F80-8BB5-F5BBCD72C991}.Release|x64.Build.0 = Release|x64
+		{5B610944-B25A-4B3A-B033-2254D84F8FE2}.Debug|x64.ActiveCfg = Debug
+		{5B610944-B25A-4B3A-B033-2254D84F8FE2}.Debug|x64.Build.0 = Debug
+		{5B610944-B25A-4B3A-B033-2254D84F8FE2}.Release|x64.ActiveCfg = Release
+		{5B610944-B25A-4B3A-B033-2254D84F8FE2}.Release|x64.Build.0 = Release
+		{6045F1B6-3B7D-4003-92D0-3E60C0F93936}.Debug|x64.ActiveCfg = Debug|x64
+		{6045F1B6-3B7D-4003-92D0-3E60C0F93936}.Debug|x64.Build.0 = Debug|x64
+		{6045F1B6-3B7D-4003-92D0-3E60C0F93936}.Release|x64.ActiveCfg = Release|x64
+		{6045F1B6-3B7D-4003-92D0-3E60C0F93936}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6D81D168-0340-4271-B53A-4C24E2F9CA1B}
+	EndGlobalSection
+EndGlobal

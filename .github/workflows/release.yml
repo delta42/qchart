@@ -1,0 +1,55 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'QChart-v*'
+
+jobs:
+
+  release:
+
+    runs-on: windows-latest
+          
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - uses: microsoft/setup-msbuild@v1.1
+
+      # We have a Visual Studio Installer project so msbuild cannot be used, we must use devenv instead
+      - name: Build QChart
+        run: |
+            dotnet restore src/QChart.sln
+            $devenv = & vswhere.exe '-property' productPath
+            Start-Process -FilePath $devenv -ArgumentList "src/QChart.sln","/Build","Release|x64" -Wait
+
+      - name: Zip Release Files
+        uses: thedoctor0/zip-release@main
+        with:
+          type: 'zip'
+          filename: 'QChart.zip'
+          directory: 'src/QChartSetup/Release'
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: ${{ steps.changelog.outputs.body }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: src/QChartSetup/Release/QChart.zip
+          asset_name: QChart.zip
+          asset_content_type: application/zip-compressed

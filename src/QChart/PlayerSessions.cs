@@ -9,10 +9,11 @@ namespace QChart
         public int MaxFrags = 0;
         public string MatchDate;
         public string Map;
+        public int TimeLimit;
 
         public void AddSessionFromEventLog(string filePath)
         {
-            PlayerSession session = new PlayerSession(filePath);
+            PlayerSession session = new PlayerSession(filePath, TimeLimit);
             this.Add(session);
 
             if (session.Frags > MaxFrags)

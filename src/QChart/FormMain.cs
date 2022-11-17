@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -12,19 +13,33 @@ namespace QChart
 {
     public partial class FormMain : Form
     {
-        PlayerSessions PlayerSessions;
+        private string MvdFilePath = null;
+        private bool KeepLogs = false;
+        private bool ExitWhenDone = false;
+        private PlayerSessions PlayerSessions;
         private Chart GameChart;
 
-        public FormMain(string mvdFilePath)
+        public FormMain(string mvdFilePath, bool exitWhenDone, bool keepLogs)
         {
             InitializeComponent();
             this.AllowDrop = true;
             this.DragEnter += new DragEventHandler(FormMain_DragEnter);
             this.DragDrop += new DragEventHandler(FormMain_DragDrop);
 
-            if (!string.IsNullOrEmpty(mvdFilePath))
+            MvdFilePath = mvdFilePath;
+            ExitWhenDone = exitWhenDone;
+            KeepLogs = keepLogs;
+        }
+
+        private void FormMain_Shown(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(MvdFilePath))
             {
-                StartWorkflow(mvdFilePath);
+                StartWorkflow(MvdFilePath);
+                if (ExitWhenDone)
+                {
+                    this.Close();
+                }
             }
         }
 
@@ -61,17 +76,68 @@ namespace QChart
         private void StartWorkflow(string mvdFilePath)
         {
             Application.UseWaitCursor = true;
+
+            lblSelectMVD.Text = "Processing...";
+
+            // The first step is to copy the MVD file to the Windows temp folder, so that all the log files
+            // automatically get created there. Then at the end we can remove it, along with all the generated
+            // log files.
+            string tempFolderPath = Path.GetTempPath();
+            string mvdFilename = Path.GetFileName(mvdFilePath);
+            string mvdFilePathTemp = Path.Combine(tempFolderPath, mvdFilename);
+
             try
             {
                 PlayerSessions = new PlayerSessions();
-                if (!RunMVDParser(mvdFilePath)) return;
-                if (!LoadPlayerEventLogs(mvdFilePath)) return;
-                if (!LoadGameMetadata(mvdFilePath)) return;
+
+                if (File.Exists(mvdFilePathTemp))
+                {
+                    File.Delete(mvdFilePathTemp);
+                }
+                File.Copy(mvdFilePath, mvdFilePathTemp);
+
+                if (!RunMVDParser(mvdFilePathTemp)) return;
+                if (!LoadGameMetadata(mvdFilePathTemp)) return;
+                if (!LoadPlayerEventLogs(mvdFilePathTemp)) return;
                 if (!CreateChart()) return;
+
                 this.Controls.Remove(lblSelectMVD); // We don't need this anymore
+                this.Refresh();
+
+                // Here we pass in the *original* file path, so that the image gets saved in the same folder as it
+                SaveChartToFile(mvdFilePath);
             }
             finally
             {
+                // Delete the MVD file copy and any generated log files. Here we eat any possible exceptions.
+                // Of course, if the user asked to keep logs, we skip this step
+                try
+                {
+                    DirectoryInfo dir = new DirectoryInfo(tempFolderPath);
+                    // This is just the MVD file
+                    foreach (FileInfo file in dir.EnumerateFiles($"{mvdFilename}"))
+                    {
+                        file.Delete();
+                    }
+                    // These are all the logs
+                    if (!KeepLogs)
+                    {
+                        foreach (FileInfo file in dir.EnumerateFiles($"{mvdFilename}*.log"))
+                        {
+                            file.Delete();
+                        }
+                        // One of the generate log files is actually a json file
+                        foreach (FileInfo file in dir.EnumerateFiles($"{mvdFilename}*.json"))
+                        {
+                            file.Delete();
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore
+                }
+
                 Application.UseWaitCursor = false;
             }
         }
@@ -79,8 +145,8 @@ namespace QChart
         private bool RunMVDParser(string mvdFilePath)
         {
             // Spawn mvdparser.exe with file path as parameter
-            string folderPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            string exeFilePath = Path.Combine(folderPath, "mvdparser.exe");
+            string exeFolderPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string exeFilePath = Path.Combine(exeFolderPath, "mvdparser.exe");
 
             if (!File.Exists(exeFilePath))
             {
@@ -89,13 +155,13 @@ namespace QChart
             }
             // We do the dame for the 2 mandatory DAT files because it's easier for us to check here and now then let
             // mvdparser complain
-            string fragfilePath = Path.Combine(folderPath, "fragfile.dat");
+            string fragfilePath = Path.Combine(exeFolderPath, "fragfile.dat");
             if (!File.Exists(fragfilePath))
             {
                 Program.ErrorBox($"Cannot find '{fragfilePath}'");
                 return false;
             }
-            string templateFilePath = Path.Combine(folderPath, "template.dat");
+            string templateFilePath = Path.Combine(exeFolderPath, "template.dat");
             if (!File.Exists(templateFilePath))
             {
                 Program.ErrorBox($"Cannot find '{templateFilePath}'");
@@ -103,7 +169,8 @@ namespace QChart
             }
 
             ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.FileName = $"\"{exeFilePath}\""; 
+            startInfo.FileName = exeFilePath;
+            startInfo.WorkingDirectory = exeFolderPath;
             startInfo.Arguments = $"\"{mvdFilePath}\"";
             startInfo.RedirectStandardOutput = true;
             startInfo.RedirectStandardError = true;
@@ -137,10 +204,16 @@ namespace QChart
             // so we just look at all indexes 0 .. 31 anbd load what we find.
             for (int i = 0; i < 32; i++)
             {
-                string filePath = $"{mvdFilePath}-{i}-events.log";
-                if (File.Exists(filePath))
+                string filePathEvents = $"{mvdFilePath}-{i}-events.log";
+                if (File.Exists(filePathEvents))
                 {
-                    PlayerSessions.AddSessionFromEventLog(filePath);
+                    // There's a bug, or at the very least an "anomaly", whereby extraneous log files are generated, and experimentation
+                    // has found that these are not accompanied by -player.log files. Hence we skip those.
+                    string filePathPlayer = $"{mvdFilePath}-{i}-player.log";
+                    if (File.Exists(filePathPlayer))
+                    {
+                        PlayerSessions.AddSessionFromEventLog(filePathEvents);
+                    }
                 }
             }
 
@@ -186,8 +259,20 @@ namespace QChart
                 return false;
             }
 
+            string serverSettingsLogfilePath = $"{mvdFilePath}-serversettings.log";
+            if (!GetKeyValuePairs(serverSettingsLogfilePath, out kvps))
+            {
+                return false;
+            }
+            if (!kvps.TryGetValue("timelimit", out string timeLimitString) || !int.TryParse(timeLimitString, out int timeLimit))
+            {
+                Program.ErrorBox($"Cannot find or parse 'timelimit' in '{serverSettingsLogfilePath}'");
+                return false;
+            }
+
             PlayerSessions.MatchDate = matchStartDate;
             PlayerSessions.Map = map.ToUpper();
+            PlayerSessions.TimeLimit = timeLimit * 60 * 1000;   // Note: we use milliseconds out of convenience
 
             return true;
         }
@@ -215,6 +300,18 @@ namespace QChart
             return true;
         }
 
+        private void PlayerSessionError()
+        {
+            string s = "Unexpected MVD file contains more than 4 players per team:\n\n";
+
+            foreach (PlayerSession session in PlayerSessions)
+            {
+                s += $"Team '{session.TeamName}', Player '{session.PlayerName}'\n";
+            }
+
+            Program.ErrorBox(s);
+        }
+
         private bool CreateChart()
         {
             if (GameChart != null)
@@ -240,13 +337,29 @@ namespace QChart
                 Color color;
                 if (session.TeamName == PlayerSessions.Teams[0].Name)
                 {
-                    color = colorsTeam1[0];
-                    colorsTeam1.RemoveAt(0);
+                    if (colorsTeam1.Count > 0)
+                    {
+                        color = colorsTeam1[0];
+                        colorsTeam1.RemoveAt(0);
+                    }
+                    else
+                    {
+                        PlayerSessionError();
+                        return false;
+                    }
                 }
                 else
                 {
-                    color = colorsTeam2[0];
-                    colorsTeam2.RemoveAt(0);
+                    if (colorsTeam2.Count > 0)
+                    {
+                        color = colorsTeam2[0];
+                        colorsTeam2.RemoveAt(0);
+                    }
+                    else
+                    {
+                        PlayerSessionError();
+                        return false;
+                    }
                 }
                 // Create and associate a new series
                 GameChart.Series.Add(CreateSeries(session.SeriesName, color));
@@ -370,6 +483,17 @@ namespace QChart
             legend.BorderColor = Color.Black;
 
             return legend;
+        }
+
+        private void SaveChartToFile(string mvdFilePath)
+        {
+            Rectangle rc = this.RectangleToScreen(this.ClientRectangle);
+            Bitmap bmp = new Bitmap(rc.Width, rc.Height, PixelFormat.Format32bppArgb);
+            Graphics g = Graphics.FromImage(bmp);
+            g.CopyFromScreen(rc.Left, rc.Top, 0, 0, bmp.Size, CopyPixelOperation.SourceCopy);
+
+            string filePath = $"{mvdFilePath}-chart.png";
+            bmp.Save(filePath, ImageFormat.Png);
         }
     }
 }

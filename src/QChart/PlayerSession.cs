@@ -32,7 +32,7 @@ namespace QChart
             }
         }
 
-        public PlayerSession(string eventFilePath)
+        public PlayerSession(string eventFilePath, int timeLimit)
         {
             string[] stLineArr = File.ReadAllLines(eventFilePath);
             // Remove empty lines
@@ -47,16 +47,29 @@ namespace QChart
             int lastTeamkills = 0;
             for (int i = 0; i < stLineArr.Length; i++)
             {
-                FragEvents.Add(new FragEvent(stLineArr[i]));
+                FragEvent fragEvent = new FragEvent(stLineArr[i]);
+
+                // We stop at the official match time, because sometimes we find additional events after this where players have 0 frags
+                // all fo a sudden (!).
+                // TODO: In the future we will likely need to identify and support games that go into overtime due to tied scores.
+                if (fragEvent.Matchtime > timeLimit)
+                {
+                    Array.Resize(ref TimeArray, i);
+                    Array.Resize(ref FragArray, i);
+                    Array.Resize(ref FragTypeArray, i);
+                    break;
+                }
+
+                FragEvents.Add(fragEvent);
 
                 TimeArray[i] = new DateTime(0).AddMilliseconds(FragEvents[i].Matchtime);
                 FragArray[i] = FragEvents[i].Frags;
 
                 // Since frags and suicides and teamkills can all happen in the same event, we simply
-                // prioritize: if Frags goes up, we count it as a Frags.
+                // prioritize: if Frags goes up, we count it as a Frag.
                 if (FragEvents[i].Frags == lastFrags + 1)
                 {
-                    // frags goes up by one, this is a regular frag
+                    // Frags goes up by one, this is a regular Frag
                     FragTypeArray[i] = FragType.Frag;
                 }
                 else if (FragEvents[i].Suicides == lastSuicides + 1)

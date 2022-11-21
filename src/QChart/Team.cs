@@ -1,7 +1,8 @@
 ﻿using System;
 
 namespace QChart
-{    class Team : IComparable<Team>
+{
+    class Team : IComparable<Team>
     {
         public string Name;
         public int Frags;
@@ -19,7 +20,15 @@ namespace QChart
 
         public int CompareTo(Team compareTeam)
         {
-            return -this.Frags.CompareTo(compareTeam.Frags);
+            if (this.Frags != compareTeam.Frags)
+            {
+                return -this.Frags.CompareTo(compareTeam.Frags);
+            }
+            else
+            {
+                // We would not expect a match to ever finish as a tie, but we're handling it anyway
+                return this.Name.CompareTo(compareTeam.Name);
+            }
         }
     }
 }

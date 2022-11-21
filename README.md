@@ -45,11 +45,10 @@ or process a whole folder of demos files like this from a batch file:
 
 Here are some short term goals.
 
-* Add a graph series to indicate team score spread, to give an idea of what team is winning and by how much at any given time.
 * Research how we can incorporate deaths into the chart data.
 * Research how other interesting metadata can be visualized in the same chart: e.g., Quad, Pent.
 * When running automatically with a specific file and `exitwhendone`, render in memory instead of the screen to remove the need for any UI at all.
-* Add more error checks to catch unexpected inputs - so far testing has been focussed on the 4 on 4 matched from [GetQuad! Draft 6](https://badplace.eu/tournament/getquad6).
+* Add more error checks to catch unexpected inputs - so far testing has been focussed on the 4 on 4 matches from [GetQuad! Draft 6](https://badplace.eu/tournament/getquad6) and a few 4 on 4 matches from [QHLan 2022](https://www.quakeworld.nu/wiki/QHLAN2022/4on4).
 * Do testing for 1 on 1 and 2 on 2 matches.
 * Do testing for FFA MVD files and add support for them.
 * Hopefully get feedback from users and incorporate new ideas!

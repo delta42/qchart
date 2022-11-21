@@ -295,7 +295,7 @@
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:1.0.1"
+        "ProductVersion" = "8:1.0.2"
         "Manufacturer" = "8:delta42"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -675,7 +675,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_0D17E01A6DEF44C5A0296E27F2856F4D"
             {
-            "SourcePath" = "8:..\\x64\\Debug\\mvdparser.exe"
+            "SourcePath" = "8:..\\x64\\Release\\mvdparser.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_84F2326BB62B43CE962EE8547F03D86F"
@@ -703,7 +703,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_154E9F34BB284898BCB57E9CB9AAC97D"
             {
-            "SourcePath" = "8:..\\QChart\\obj\\x64\\Debug\\apphost.exe"
+            "SourcePath" = "8:..\\QChart\\obj\\x64\\Release\\apphost.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_84F2326BB62B43CE962EE8547F03D86F"

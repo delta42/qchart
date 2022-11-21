@@ -16,10 +16,12 @@ namespace QChart
         List<FragEvent> FragEvents = new List<FragEvent>();
         public string PlayerName;
         public string TeamName;
-        public int Frags;
+        public int Frags;           // Frag count at end of match
+        public int MaxFrags;        // Max frag count during game, may be more than Frags!
         public DateTime[] TimeArray;
         public int[] FragArray;
         public FragType[] FragTypeArray;
+        public DateTime LastEventTime;
 
         public string SeriesName
         {
@@ -45,14 +47,18 @@ namespace QChart
             int lastFrags = 0;
             int lastSuicides = 0;
             int lastTeamkills = 0;
+            MaxFrags = 0;
             for (int i = 0; i < stLineArr.Length; i++)
             {
                 FragEvent fragEvent = new FragEvent(stLineArr[i]);
 
-                // We stop at the official match time, because sometimes we find additional events after this where players have 0 frags
-                // all fo a sudden (!).
-                // TODO: In the future we will likely need to identify and support games that go into overtime due to tied scores.
-                if (fragEvent.Matchtime > timeLimit)
+                // Sometimes we find additional events after match time where players have 0 frags. This is possibly a
+                // problem with MVDparser. Regardless, we initially deal with this by ignoring events past Matchtime.
+                // However this obviously did not work in cases of overtime. Hence now we halt processing events if
+                // they are both past MatchTime *and* 0 frags. Of course it's still technically possible a very
+                // poor/unlucky player legitimately has 0 frags after Matchtime, and in this case our solution fails.
+                // TODO: Study MVDparser closely and see why these extraneous 0 frag events even exist.
+                if (fragEvent.Matchtime > timeLimit && fragEvent.Frags == 0)
                 {
                     Array.Resize(ref TimeArray, i);
                     Array.Resize(ref FragArray, i);
@@ -86,11 +92,18 @@ namespace QChart
                 lastFrags = FragEvents[i].Frags;
                 lastSuicides = FragEvents[i].Suicides;
                 lastTeamkills = FragEvents[i].Teamkills;
+
+                // Keep track of MaxFrags
+                if (FragEvents[i].Frags > MaxFrags)
+                {
+                    MaxFrags = FragEvents[i].Frags;
+                }
             }
 
             PlayerName = FragEvents.Last().Name;
             TeamName = FragEvents.Last().Team.ToUpper();
             Frags = FragEvents.Last().Frags;
+            LastEventTime = new DateTime(0).AddMilliseconds(FragEvents.Last().Matchtime);
 
             // We set these up so that PlayerSession.SeriesName can do some fancy formatting
             if (PlayerName.Length > MaxPlayerNameLen)
@@ -111,7 +124,15 @@ namespace QChart
             }
             else
             {
-                return -this.Team.Frags.CompareTo(compareSession.Team.Frags);
+                if (this.Team.Frags != compareSession.Team.Frags)
+                {
+                    return -this.Team.Frags.CompareTo(compareSession.Team.Frags);
+                }
+                else
+                {
+                    // We would not expect a match to ever finish as a tie, but we're handling it anyway
+                    return this.TeamName.CompareTo(compareSession.TeamName);
+                }
             }
         }
     }

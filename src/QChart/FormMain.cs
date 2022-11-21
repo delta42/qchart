@@ -29,6 +29,10 @@ namespace QChart
             MvdFilePath = mvdFilePath;
             ExitWhenDone = exitWhenDone;
             KeepLogs = keepLogs;
+
+            // Include app version in window title 
+            FileVersionInfo fvi = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);
+            this.Text = $"{fvi.ProductName} v{fvi.ProductVersion}";
         }
 
         private void FormMain_Shown(object sender, EventArgs e)
@@ -328,7 +332,7 @@ namespace QChart
             GameChart.Series.Clear();
 
             // Create and associate the chart
-            GameChart.ChartAreas.Add(CreateChartArea());
+            GameChart.ChartAreas.Add(CreateChartArea(out int fragDiffOffset));
 
             List<Color> colorsTeam1 = new List<Color> { Color.DodgerBlue, Color.SkyBlue, Color.DarkTurquoise, Color.LimeGreen };
             List<Color> colorsTeam2 = new List<Color> { Color.Crimson, Color.HotPink, Color.SandyBrown, Color.OrangeRed };
@@ -364,6 +368,7 @@ namespace QChart
                 // Create and associate a new series
                 GameChart.Series.Add(CreateSeries(session.SeriesName, color));
                 GameChart.Series[session.SeriesName].Points.DataBindXY(session.TimeArray, session.FragArray);
+
                 // Loop over datapoints to give them customer markers based on FragType
                 for (int i = 0; i < session.FragTypeArray.Length; i++)
                 {
@@ -389,6 +394,14 @@ namespace QChart
                 }
             }
 
+            // Create one more series describing the ongoing team score differential
+            GameChart.Series.Add(CreateSeries("FragDiff", Color.LightGray));
+            GameChart.Series["FragDiff"].BorderWidth = 3;
+            GameChart.Series["FragDiff"].Points.DataBindXY(PlayerSessions.GameFragEvents.TimeArray, PlayerSessions.GameFragEvents.FragDiffArray);
+            GameChart.Series["FragDiff"].IsVisibleInLegend = false;
+            // These values are tied to the right hand aka secondary y-axis
+            GameChart.Series["FragDiff"].YAxisType = AxisType.Secondary;
+
             // Create and associate a legend
             GameChart.Legends.Add(CreateLegend());
 
@@ -397,7 +410,7 @@ namespace QChart
             Title title = new Title(gameTitle, Docking.Top, new Font("Arial", 12, FontStyle.Bold), Color.Black);
             GameChart.Titles.Add(title);
 
-            string gameSubtitle = $"Match Date {PlayerSessions.MatchDate} / Map {PlayerSessions.Map}";
+            string gameSubtitle = $"Match Date {PlayerSessions.MatchDate}       Map {PlayerSessions.Map}";
             Title subtitle = new Title(gameSubtitle, Docking.Top, new Font("Arial", 10), Color.Black);
             GameChart.Titles.Add(subtitle);
 
@@ -416,13 +429,21 @@ namespace QChart
             SizeChartToForm();
         }
 
-        private ChartArea CreateChartArea()
+        private DateTime RoundUp(DateTime dt, TimeSpan d)
+        {
+            return new DateTime((dt.Ticks + d.Ticks - 1) / d.Ticks * d.Ticks, dt.Kind);
+        }
+
+        private ChartArea CreateChartArea(out int fragDiffOffset)
         {
             ChartArea chartArea = new ChartArea();
 
             chartArea.AxisX.LabelStyle.Format = "{mm:ss}";
             chartArea.AxisX.MajorGrid.LineColor = Color.LightGray;
             chartArea.AxisX.MajorGrid.Interval = 1;
+            // We want the 20 minute mark to appear, or 25 if that ios the case, etc.
+            // We approach this by taking the last possible event and then rounding up to the next highest minute.
+            chartArea.AxisX.Maximum = RoundUp(PlayerSessions.LastEventTime, TimeSpan.FromMinutes(1)).ToOADate();
             chartArea.AxisX.IntervalType = DateTimeIntervalType.Minutes;
             chartArea.AxisX.MajorTickMark.Interval = 1;
             chartArea.AxisX.IntervalAutoMode = IntervalAutoMode.VariableCount;
@@ -430,28 +451,42 @@ namespace QChart
             chartArea.AxisX.LabelStyle.Interval = 1;
             chartArea.AxisX.LabelStyle.IsEndLabelVisible = true;
 
-            // Setup left hand Y-axis
+            // Setup left hand Y-axis for player frags
             chartArea.AxisY.Interval = 5;
             chartArea.AxisY.MajorGrid.Interval = 5;
             chartArea.AxisY.MajorGrid.LineColor = Color.LightGray;
             chartArea.AxisY.Minimum = 0;
-            chartArea.AxisY.Maximum = PlayerSessions.MaxFrags;
-            chartArea.AxisY.Title = "Frags";
+            // Round up to the nearest multiple of 5
+            chartArea.AxisY.Maximum = (int)(PlayerSessions.MaxFrags / 5.0 + 1) * 5;
+            chartArea.AxisY.Title = "Individual Player Frags";
             chartArea.AxisY.TitleFont = new Font("Arial", 12);
-            chartArea.AxisY.TitleForeColor = Color.Blue;
-            chartArea.AxisY.LabelStyle.ForeColor = Color.Blue;
+            chartArea.AxisY.TitleForeColor = Color.Black;
+            chartArea.AxisY.LabelStyle.ForeColor = Color.Black;
 
-            // Duplicate axis on right hand side
+            // Setup right hand Y-axis for team frag differential
             chartArea.AxisY2.Interval = 5;
             chartArea.AxisY2.MajorGrid.Interval = 5;
-            //chartArea.AxisY2.MinorGrid.Interval = 1 / 2.0;
             chartArea.AxisY2.Enabled = AxisEnabled.True;
-            chartArea.AxisY2.Minimum = 0;
-            chartArea.AxisY2.Maximum = PlayerSessions.MaxFrags;
-            chartArea.AxisY2.Title = "";
+            chartArea.AxisY2.MajorGrid.Enabled = false;
+            // We make this a +/- a multiple of 20, with 0 in the middle
+            fragDiffOffset = Math.Max(Math.Abs(PlayerSessions.GameFragEvents.FragDiffMin), Math.Abs(PlayerSessions.GameFragEvents.FragDiffMax));
+            fragDiffOffset = (int)((fragDiffOffset + 20) / 20.0) * 20;
+            // Avoid luducrous amount of labels
+            if (fragDiffOffset > 200)
+            {
+                chartArea.AxisY2.Interval = 20;
+                chartArea.AxisY2.MajorGrid.Interval = 20;
+            } else if (fragDiffOffset > 100)
+            {
+                chartArea.AxisY2.Interval = 10;
+                chartArea.AxisY2.MajorGrid.Interval = 10;
+            }
+            chartArea.AxisY2.Minimum = -fragDiffOffset;
+            chartArea.AxisY2.Maximum = fragDiffOffset;
+            chartArea.AxisY2.Title = "Team Frag Delta";
             chartArea.AxisY2.TitleFont = new Font("Arial", 12);
-            chartArea.AxisY2.TitleForeColor = Color.Blue;
-            chartArea.AxisY2.LabelStyle.ForeColor = Color.Blue;
+            chartArea.AxisY2.TitleForeColor = Color.LightGray;
+            chartArea.AxisY2.LabelStyle.ForeColor = Color.LightGray;
 
             return chartArea;
         }

@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 1.0.2, November 21, 2022
+
+- New support for **Team Frag Delta** curve to highlight the team score diffential as it changes throughout the game.
+- Optimized the min and max axis ranges for both the time x-axis as well as the frag count vertical access.
+- Bugfix: addressed erroneous 'MVDplayer 0 frag events' better so as to support games that go into overtime.
+- Minor tweaks here and there.
+
 ## Version 1.0.1, November 17, 2022
 
 - Generated chart images automatically get saved as `[MVDFilePath]-chart.png`.
